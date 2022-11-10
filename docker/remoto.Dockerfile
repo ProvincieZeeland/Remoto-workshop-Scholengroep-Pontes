@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/remo
 #
 # Build client
 #
-FROM node:alpine as builder_client
+FROM node:16 as builder_client
 WORKDIR /app
 
 # Install dependencies
