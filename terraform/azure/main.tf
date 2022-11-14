@@ -55,7 +55,7 @@ resource "azapi_resource" "containerapp_environment" {
   body = jsonencode({
     properties = {
       vnetConfiguration = {
-        internal               = true
+        internal               = false
         infrastructureSubnetId = azurerm_subnet.acae.id
       }
     }
@@ -77,8 +77,15 @@ resource "azapi_resource" "containerapp_control" {
       managedEnvironmentId = azapi_resource.containerapp_environment.id
       configuration = {
         ingress = {
-          external : true,
+          external: true
           targetPort : 80
+          allowInsecure: false,
+          traffic: [
+            {
+              latestRevision: true,
+              weight: 100
+            }
+          ]
         }
       }
       template = {
@@ -89,11 +96,11 @@ resource "azapi_resource" "containerapp_control" {
             env = [
               {
                 name : "REMOTO_GUACD_FQDN",
-                value : "guacd.ecs.remoto"
+                value : "guacd"
               },
               {
                 name : "REMOTO_SANDBOX_FQDN",
-                value : "sandbox.remoto"
+                value : "sandbox.svc.remoto"
               },
               {
                 name : "REMOTO_HTTP_ADDR",
@@ -109,11 +116,11 @@ resource "azapi_resource" "containerapp_control" {
               },
               {
                 name : "REMOTO_REMOTE_PROTOCOL",
-                value : "rdp"
+                value : "vnc"
               },
               {
                 name : "REMOTO_REMOTE_PORT",
-                value : "3389"
+                value : "5901"
               },
               {
                 name : "REMOTO_REMOTE_SERIAL_PORT",
@@ -162,7 +169,7 @@ resource "azapi_resource" "containerapp_control" {
   ]
 }
 resource "azapi_resource" "containerapp_guacd" {
-  type      = "Microsoft.App/containerapps@2022-03-01"
+  type      = "Microsoft.App/containerapps@2022-06-01-preview"
   name      = "guacd"
   parent_id = azurerm_resource_group.this.id
   location  = azurerm_resource_group.this.location
@@ -172,8 +179,15 @@ resource "azapi_resource" "containerapp_guacd" {
       managedEnvironmentId = azapi_resource.containerapp_environment.id
       configuration = {
         ingress = {
-          external : true,
+          external: false
           targetPort : 4822
+          transport: "tcp"
+          traffic: [
+            {
+              latestRevision: true,
+              weight: 100
+            }
+          ]
         }
       }
       template = {
@@ -198,44 +212,6 @@ resource "azapi_resource" "containerapp_guacd" {
     azapi_resource.containerapp_environment
   ]
 }
-//resource "azurerm_container_group" "remoto" {
-//  name                = "acg-remoto"
-//  location            = azurerm_resource_group.this.location
-//  resource_group_name = azurerm_resource_group.this.name
-//  ip_address_type     = "Private"
-//  network_profile_id  = azurerm_network_profile.control.id
-//  //dns_name_label      = "remoto-control"
-//  os_type             = "Linux"
-//
-//  container {
-//    name   = "remoto-control"
-//    image  = var.image_control
-//    cpu    = "0.25"
-//    memory = "0.5"
-//
-//    ports {
-//      port     = 80
-//      protocol = "TCP"
-//    }
-//
-//    environment_variables = {
-//      "REMOTO_GUACD_FQDN" : "guacd.ecs.remoto",
-//      "REMOTO_SANDBOX_FQDN" : "sandbox.remoto",
-//      "REMOTO_HTTP_ADDR" : "0.0.0.0:80",
-//      "REMOTO_WORKSHOP_CODE" : var.remoto_workshop_code,
-//      "REMOTO_ADMIN_CODE" : var.remoto_admin_code,
-//      "REMOTO_REMOTE_PROTOCOL" : "rdp",
-//      "REMOTO_REMOTE_PORT" : "3389",
-//      "REMOTO_REMOTE_SERIAL_PORT" : "5000",
-//      "REMOTO_REMOTE_USERNAME" : "workshop",
-//      "REMOTO_REMOTE_PASSWORD" : "workshop",
-//      "REMOTO_REMOTE_IGNORE_CERT" : "true",
-//      "REMOTO_REMOTE_SECURITY" : "any",
-//      "REMOTO_REMOTE_WIDTH" : "1366",
-//      "REMOTO_REMOTE_HEIGHT" : "768",
-//    }
-//  }
-//}
 
 // Sandboxes subnet is for all the sandboxes that will be created
 resource "azurerm_subnet" "sandboxes" {
@@ -253,7 +229,8 @@ resource "azurerm_network_interface" "sandboxes" {
   ip_configuration {
     name                          = "sandboxes"
     subnet_id                     = azurerm_subnet.sandboxes.id
-    private_ip_address_allocation = "Dynamic"
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.0.2.${count.index+10}"
   }
 }
 resource "azurerm_private_dns_a_record" "sandbox" {

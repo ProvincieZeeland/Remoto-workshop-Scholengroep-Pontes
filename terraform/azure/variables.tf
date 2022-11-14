@@ -28,5 +28,5 @@ variable "remoto_admin_code" {
 }
 variable "remoto_sandbox_count" {
   type    = number
-  default = 5
+  default = 2
 }
