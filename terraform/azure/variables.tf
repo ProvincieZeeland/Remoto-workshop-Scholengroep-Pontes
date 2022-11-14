@@ -18,6 +18,15 @@ variable "image_guacd" {
   type    = string
   default = "docker.io/guacamole/guacd:1.4.0"
 }
+variable "shared_image_sandbox_name" {
+  type    = string
+}
+variable "shared_image_sandbox_gallery_name" {
+  type    = string
+}
+variable "shared_image_sandbox_resource_group_name" {
+  type    = string
+}
 variable "remoto_workshop_code" {
   type    = string
   default = "demo"
@@ -28,5 +37,5 @@ variable "remoto_admin_code" {
 }
 variable "remoto_sandbox_count" {
   type    = number
-  default = 2
+  default = 5
 }

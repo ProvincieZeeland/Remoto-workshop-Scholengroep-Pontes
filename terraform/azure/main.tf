@@ -220,6 +220,13 @@ resource "azurerm_subnet" "sandboxes" {
   virtual_network_name = azurerm_virtual_network.this.name
   address_prefixes     = ["10.0.2.0/24"]
 }
+resource "azurerm_public_ip" "sandbox" {
+  count               = var.remoto_sandbox_count
+  name                = "pubip-sandbox-${count.index}"
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+  allocation_method   = "Dynamic"
+}
 resource "azurerm_network_interface" "sandboxes" {
   count               = var.remoto_sandbox_count
   name                = "remoto-sandboxes-nic-${count.index}"
@@ -231,6 +238,7 @@ resource "azurerm_network_interface" "sandboxes" {
     subnet_id                     = azurerm_subnet.sandboxes.id
     private_ip_address_allocation = "Static"
     private_ip_address            = "10.0.2.${count.index+10}"
+    public_ip_address_id          = azurerm_public_ip.sandbox[count.index].id 
   }
 }
 resource "azurerm_private_dns_a_record" "sandbox" {
@@ -240,6 +248,11 @@ resource "azurerm_private_dns_a_record" "sandbox" {
   ttl                 = 300
   records             = azurerm_linux_virtual_machine.sandbox.*.private_ip_address
 }
+data "azurerm_shared_image" "sandbox" {
+  name                = var.shared_image_sandbox_name                
+  gallery_name        = var.shared_image_sandbox_gallery_name        
+  resource_group_name = var.shared_image_sandbox_resource_group_name 
+}
 resource "azurerm_linux_virtual_machine" "sandbox" {
   count = var.remoto_sandbox_count
 
@@ -248,6 +261,8 @@ resource "azurerm_linux_virtual_machine" "sandbox" {
   location            = azurerm_resource_group.this.location
   size                = "Standard_B2s"
   admin_username      = "azureuser"
+  source_image_id     = data.azurerm_shared_image.sandbox.id
+
   network_interface_ids = [
     azurerm_network_interface.sandboxes[count.index].id,
   ]
@@ -260,13 +275,5 @@ resource "azurerm_linux_virtual_machine" "sandbox" {
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    // Canonical:0001-com-ubuntu-server-focal:20_04-lts:20.04.202209200
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-focal"
-    sku       = "20_04-lts"
-    version   = "20.04.202209200"
   }
 }
